@@ -24,6 +24,7 @@ class _SensorPageState extends State<SensorPage> {
   String humidity = "Loading...";
   String ph = "Loading...";
   bool _isPumpRunning = false;
+  bool _isLEDOn = false;
   double desiredTemp = 25.0;
   String espIp = "192.168.43.10";
   final TextEditingController _tempController = TextEditingController();
@@ -52,6 +53,7 @@ class _SensorPageState extends State<SensorPage> {
           ph = data['ph']?.toStringAsFixed(2) ?? 'N/A';
           desiredTemp = data['desiredTemp']?.toDouble() ?? 25.0;
           _tempController.text = desiredTemp.toStringAsFixed(1);
+          _isLEDOn = data['lightStatus'] ?? false;
         });
       }
     } catch (e) {
@@ -61,7 +63,6 @@ class _SensorPageState extends State<SensorPage> {
 
   Future<void> setTemperature() async {
     double? newTemp = double.tryParse(_tempController.text);
-
     try {
       await http.post(
         Uri.parse('http://$espIp/command'),
@@ -98,6 +99,25 @@ class _SensorPageState extends State<SensorPage> {
       print(e);
     } finally {
       setState(() => _isPumpRunning = false);
+    }
+  }
+
+  Future<void> toggleLED() async {
+    bool newLEDStatus = !_isLEDOn;
+
+    setState(() => _isLEDOn = newLEDStatus);
+
+    try {
+      await http.post(
+        Uri.parse('http://$espIp/command'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'LEDStatus': newLEDStatus}),
+      );
+
+      setState(() => _isLEDOn = newLEDStatus);
+    } catch (e) {
+      print(e);
+      setState(() => _isLEDOn = !newLEDStatus);
     }
   }
 
@@ -148,7 +168,16 @@ class _SensorPageState extends State<SensorPage> {
                 backgroundColor: _isPumpRunning ? Colors.green : null,
                 minimumSize: Size(double.infinity, 50),
               ),
-              child: Text(_isPumpRunning ? "PUMP ACTIVED" : "ACTIVATE PUMP"),
+              child: Text(_isPumpRunning ? "PUMP ACTIVE" : "ACTIVATE PUMP"),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: toggleLED,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isLEDOn ? Colors.yellow : null,
+                minimumSize: Size(double.infinity, 50),
+              ),
+              child: Text(_isLEDOn ? "TURN OFF LED" : "TURN ON LED"),
             ),
             SizedBox(height: 10),
             ElevatedButton(
